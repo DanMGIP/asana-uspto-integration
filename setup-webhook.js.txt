@@ -1,0 +1,55 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+const ASANA_PAT = process.env.ASANA_PAT;
+// The GID of the Asana Project you want to monitor
+const PROJECT_GID = process.env.ASANA_PROJECT_GID;
+// The public URL of your deployed server (e.g. https://my-app.onrender.com/webhook)
+const SERVER_URL = process.env.SERVER_URL; 
+
+async function createWebhook() {
+    if (!ASANA_PAT || !PROJECT_GID || !SERVER_URL) {
+        console.error("Missing required environment variables (ASANA_PAT, ASANA_PROJECT_GID, SERVER_URL).");
+        process.exit(1);
+    }
+
+    console.log(`Registering webhook for Project: ${PROJECT_GID} to target: ${SERVER_URL}`);
+
+    const payload = {
+        data: {
+            resource: PROJECT_GID,
+            target: SERVER_URL,
+            filters: [
+                {
+                    resource_type: "task",
+                    action: "changed",
+                    fields: ["custom_fields"]
+                }
+            ]
+        }
+    };
+
+    try {
+        const response = await fetch('https://app.asana.com/api/1.0/webhooks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${ASANA_PAT}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            console.log("Webhook created successfully!");
+            console.log(JSON.stringify(data, null, 2));
+        } else {
+            console.error("Failed to create webhook:", JSON.stringify(data, null, 2));
+        }
+    } catch (error) {
+        console.error("Network error creating webhook:", error);
+    }
+}
+
+createWebhook();
